@@ -2,7 +2,7 @@ FROM eclipse-temurin:17
 
 WORKDIR /app
 
-COPY . .
+COPY src/main/java/com/devguard/devguard .
 
 RUN chmod +x mvnw
 
