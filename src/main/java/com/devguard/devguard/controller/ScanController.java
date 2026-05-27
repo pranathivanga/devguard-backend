@@ -3,6 +3,8 @@ package com.devguard.devguard.controller;
 import com.devguard.devguard.dto.CiResponse;
 import com.devguard.devguard.model.ScanRecord;
 import com.devguard.devguard.repository.ScanRepository;
+import com.devguard.devguard.service.PdfReportService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/scan")
 public class ScanController {
+    @Autowired
+    private PdfReportService pdfService;
 
     @Autowired
     private ScanRepository repository;
@@ -44,5 +48,22 @@ public class ScanController {
     @PostMapping("/zip")
     public ScanResponse scanZip(@RequestParam("file") MultipartFile file) throws IOException {
         return scanService.scanZip(file);
+    }
+    @PostMapping("/export/json")
+    public ScanResponse exportJson(@RequestBody ScanRequest request) {
+        return scanService.scanText(request.getContent());
+    }
+
+
+    @PostMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportPdf(@RequestBody ScanRequest request) throws Exception {
+
+        ScanResponse response = scanService.scanText(request.getContent());
+
+        byte[] pdf = pdfService.generatePdf(response);
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=report.pdf")
+                .body(pdf);
     }
 }
