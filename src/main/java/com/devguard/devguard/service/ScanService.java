@@ -25,8 +25,8 @@ import java.util.zip.ZipInputStream;
 @Service
 public class ScanService {
 
-    @Autowired
-    private ScanRepository repository;
+//    @Autowired
+//    private ScanRepository repository;
 
     public ScanResponse scanText(String content) {
 
@@ -56,7 +56,7 @@ public class ScanService {
         record.setRiskScore(riskScore);
         record.setTimestamp(LocalDateTime.now());
 
-        repository.save(record);
+//        repository.save(record);
 
         // 🔥 FIX: wrap results into FileReport
         List<FileReport> fileReports = new ArrayList<>();
@@ -151,7 +151,7 @@ public class ScanService {
         record.setRiskScore(riskScore);
         record.setTimestamp(LocalDateTime.now());
 
-        repository.save(record);
+//        repository.save(record);
 
         return new ScanResponse(
                 fileReports.size(),

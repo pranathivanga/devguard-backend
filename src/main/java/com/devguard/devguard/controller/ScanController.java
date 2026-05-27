@@ -21,8 +21,8 @@ public class ScanController {
     @Autowired
     private PdfReportService pdfService;
 
-    @Autowired
-    private ScanRepository repository;
+//    @Autowired
+//    private ScanRepository repository;
     @Autowired
     private ScanService scanService;
 
@@ -37,10 +37,10 @@ public class ScanController {
 
         return scanService.scanText(content);
     }
-    @GetMapping("/history")
-    public List<ScanRecord> getHistory() {
-        return repository.findAll();
-    }
+//    @GetMapping("/history")
+//    public List<ScanRecord> getHistory() {
+//        return repository.findAll();
+//    }
     @PostMapping("/ci")
     public CiResponse scanCI(@RequestBody ScanRequest request) {
         return scanService.scanForCI(request.getContent());
