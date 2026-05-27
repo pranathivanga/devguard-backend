@@ -1,33 +1,34 @@
 package com.devguard.devguard.dto;
 
-import com.devguard.devguard.engine.DetectionResult;
-
 import java.util.List;
 
 public class ScanResponse {
-    private int riskScore;
-    private int totalFindings;
-    private List<DetectionResult> results;
 
-    public ScanResponse(int totalFindings, int riskScore, List<DetectionResult> results) {
+    private int totalFiles;
+    private int totalFindings;
+    private int riskScore;
+    private List<FileReport> files;
+
+    public ScanResponse(int totalFiles, int totalFindings, int riskScore, List<FileReport> files) {
+        this.totalFiles = totalFiles;
         this.totalFindings = totalFindings;
         this.riskScore = riskScore;
-        this.results = results;
+        this.files = files;
     }
 
-    public int getRiskScore() {
-        return riskScore;
-    }
-
-    public void setRiskScore(int riskScore) {
-        this.riskScore = riskScore;
+    public int getTotalFiles() {
+        return totalFiles;
     }
 
     public int getTotalFindings() {
         return totalFindings;
     }
 
-    public List<DetectionResult> getResults() {
-        return results;
+    public int getRiskScore() {
+        return riskScore;
+    }
+
+    public List<FileReport> getFiles() {
+        return files;
     }
 }

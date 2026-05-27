@@ -1,6 +1,7 @@
 package com.devguard.devguard.service;
 
 import com.devguard.devguard.dto.CiResponse;
+import com.devguard.devguard.dto.FileReport;
 import com.devguard.devguard.dto.ScanResponse;
 import com.devguard.devguard.engine.DetectionResult;
 import com.devguard.devguard.engine.SecretDetector;
@@ -13,7 +14,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -25,19 +28,15 @@ public class ScanService {
 
     public ScanResponse scanText(String content) {
 
-        // 🔥 First get results
         List<DetectionResult> results = SecretDetector.scan(content);
 
         int riskScore = 0;
         int high = 0, medium = 0, low = 0;
 
-        // 🔥 Loop once for everything
         for (DetectionResult r : results) {
 
-            // risk score
             riskScore += getScore(r.getSeverity());
 
-            // severity count
             switch (r.getSeverity()) {
                 case "HIGH" -> high++;
                 case "MEDIUM" -> medium++;
@@ -45,19 +44,28 @@ public class ScanService {
             }
         }
 
-        // 🔥 Save to DB
+        // Save to DB
         ScanRecord record = new ScanRecord();
         record.setFileName("manual-input");
         record.setTotalFindings(results.size());
         record.setHighCount(high);
         record.setMediumCount(medium);
         record.setLowCount(low);
-        record.setRiskScore(riskScore); // ✅ IMPORTANT
+        record.setRiskScore(riskScore);
         record.setTimestamp(LocalDateTime.now());
 
         repository.save(record);
 
-        return new ScanResponse(results.size(), riskScore, results);
+        // 🔥 FIX: wrap results into FileReport
+        List<FileReport> fileReports = new ArrayList<>();
+        fileReports.add(new FileReport("manual-input", results));
+
+        return new ScanResponse(
+                1,                  // totalFiles
+                results.size(),     // totalFindings
+                riskScore,
+                fileReports
+        );
     }
 
     private int getScore(String severity) {
@@ -96,7 +104,7 @@ public class ScanService {
     }
     public ScanResponse scanZip(MultipartFile file) throws IOException {
 
-        List<DetectionResult> allResults = new ArrayList<>();
+        Map<String, List<DetectionResult>> fileMap = new HashMap<>();
 
         ZipInputStream zis = new ZipInputStream(file.getInputStream());
         ZipEntry entry;
@@ -109,39 +117,46 @@ public class ScanService {
 
                 List<DetectionResult> results = SecretDetector.scan(content);
 
-                allResults.addAll(results);
+                if (!results.isEmpty()) {
+                    fileMap.put(entry.getName(), results);
+                }
             }
         }
 
         zis.close();
 
-        // calculate risk + counts
-        int riskScore = 0, high = 0, medium = 0, low = 0;
+        // 🔥 MODULE 2 LOGIC STARTS HERE
 
-        for (DetectionResult r : allResults) {
+        List<FileReport> fileReports = new ArrayList<>();
 
-            riskScore += getScore(r.getSeverity());
+        int totalFindings = 0;
+        int riskScore = 0;
 
-            switch (r.getSeverity()) {
-                case "HIGH" -> high++;
-                case "MEDIUM" -> medium++;
-                case "LOW" -> low++;
+        for (Map.Entry<String, List<DetectionResult>> entrySet : fileMap.entrySet()) {
+
+            fileReports.add(new FileReport(entrySet.getKey(), entrySet.getValue()));
+
+            for (DetectionResult r : entrySet.getValue()) {
+                totalFindings++;
+                riskScore += getScore(r.getSeverity());
             }
         }
 
         // save to DB
         ScanRecord record = new ScanRecord();
         record.setFileName(file.getOriginalFilename());
-        record.setTotalFindings(allResults.size());
-        record.setHighCount(high);
-        record.setMediumCount(medium);
-        record.setLowCount(low);
+        record.setTotalFindings(totalFindings);
         record.setRiskScore(riskScore);
         record.setTimestamp(LocalDateTime.now());
 
         repository.save(record);
 
-        return new ScanResponse(allResults.size(), riskScore, allResults);
+        return new ScanResponse(
+                fileReports.size(),
+                totalFindings,
+                riskScore,
+                fileReports
+        );
     }
     private boolean isValidFile(String name) {
         return name.endsWith(".java") ||
