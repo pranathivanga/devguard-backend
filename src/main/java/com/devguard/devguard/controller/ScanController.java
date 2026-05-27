@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
-
+import com.devguard.devguard.dto.GithubScanRequest;
 import com.devguard.devguard.dto.ScanRequest;
 import com.devguard.devguard.dto.ScanResponse;
 import com.devguard.devguard.service.ScanService;
@@ -65,5 +65,9 @@ public class ScanController {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=report.pdf")
                 .body(pdf);
+    }
+    @PostMapping("/github")
+    public ScanResponse scanGithubRepo(@RequestBody GithubScanRequest request) throws Exception {
+        return scanService.scanGithubRepo(request.getRepoUrl());
     }
 }

@@ -10,7 +10,9 @@ import com.devguard.devguard.repository.ScanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
+import org.eclipse.jgit.api.Git;
+import java.io.File;
+import java.nio.file.Files;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -163,5 +165,65 @@ public class ScanService {
                 name.endsWith(".txt") ||
                 name.endsWith(".properties") ||
                 name.endsWith(".env");
+    }
+    public ScanResponse scanGithubRepo(String repoUrl) throws Exception {
+
+        File tempDir = Files.createTempDirectory("repo").toFile();
+
+        // clone repo
+        Git.cloneRepository()
+                .setURI(repoUrl)
+                .setDirectory(tempDir)
+                .call();
+
+        Map<String, List<DetectionResult>> fileMap = new HashMap<>();
+
+        scanDirectory(tempDir, fileMap);
+
+        List<FileReport> fileReports = new ArrayList<>();
+
+        int totalFindings = 0;
+        int riskScore = 0;
+
+        for (Map.Entry<String, List<DetectionResult>> entry : fileMap.entrySet()) {
+
+            fileReports.add(new FileReport(entry.getKey(), entry.getValue()));
+
+            for (DetectionResult r : entry.getValue()) {
+                totalFindings++;
+                riskScore += getScore(r.getSeverity());
+            }
+        }
+
+        return new ScanResponse(
+                fileReports.size(),
+                totalFindings,
+                riskScore,
+                fileReports
+        );
+    }
+    private void scanDirectory(File dir, Map<String, List<DetectionResult>> fileMap) throws IOException {
+
+        File[] files = dir.listFiles();
+
+        if (files == null) return;
+
+        for (File file : files) {
+
+            if (file.isDirectory()) {
+
+                scanDirectory(file, fileMap);
+
+            } else if (isValidFile(file.getName())) {
+
+                String content = Files.readString(file.toPath());
+
+                List<DetectionResult> results = SecretDetector.scan(content);
+
+                if (!results.isEmpty()) {
+                    fileMap.put(file.getAbsolutePath(), results);
+                }
+            }
+        }
     }
 }
