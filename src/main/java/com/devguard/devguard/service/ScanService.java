@@ -1,0 +1,152 @@
+package com.devguard.devguard.service;
+
+import com.devguard.devguard.dto.CiResponse;
+import com.devguard.devguard.dto.ScanResponse;
+import com.devguard.devguard.engine.DetectionResult;
+import com.devguard.devguard.engine.SecretDetector;
+import com.devguard.devguard.model.ScanRecord;
+import com.devguard.devguard.repository.ScanRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+@Service
+public class ScanService {
+
+    @Autowired
+    private ScanRepository repository;
+
+    public ScanResponse scanText(String content) {
+
+        // 🔥 First get results
+        List<DetectionResult> results = SecretDetector.scan(content);
+
+        int riskScore = 0;
+        int high = 0, medium = 0, low = 0;
+
+        // 🔥 Loop once for everything
+        for (DetectionResult r : results) {
+
+            // risk score
+            riskScore += getScore(r.getSeverity());
+
+            // severity count
+            switch (r.getSeverity()) {
+                case "HIGH" -> high++;
+                case "MEDIUM" -> medium++;
+                case "LOW" -> low++;
+            }
+        }
+
+        // 🔥 Save to DB
+        ScanRecord record = new ScanRecord();
+        record.setFileName("manual-input");
+        record.setTotalFindings(results.size());
+        record.setHighCount(high);
+        record.setMediumCount(medium);
+        record.setLowCount(low);
+        record.setRiskScore(riskScore); // ✅ IMPORTANT
+        record.setTimestamp(LocalDateTime.now());
+
+        repository.save(record);
+
+        return new ScanResponse(results.size(), riskScore, results);
+    }
+
+    private int getScore(String severity) {
+        switch (severity) {
+            case "HIGH": return 5;
+            case "MEDIUM": return 3;
+            case "LOW": return 1;
+            default: return 0;
+        }
+    }
+    public CiResponse scanForCI(String content) {
+
+        List<DetectionResult> results = SecretDetector.scan(content);
+
+        int highCount = 0;
+
+        for (DetectionResult r : results) {
+            if ("HIGH".equals(r.getSeverity())) {
+                highCount++;
+            }
+        }
+
+        if (highCount > 0) {
+            return new CiResponse(
+                    "FAILED",
+                    "Build blocked due to high severity secrets",
+                    highCount
+            );
+        } else {
+            return new CiResponse(
+                    "PASSED",
+                    "No high severity secrets found",
+                    0
+            );
+        }
+    }
+    public ScanResponse scanZip(MultipartFile file) throws IOException {
+
+        List<DetectionResult> allResults = new ArrayList<>();
+
+        ZipInputStream zis = new ZipInputStream(file.getInputStream());
+        ZipEntry entry;
+
+        while ((entry = zis.getNextEntry()) != null) {
+
+            if (!entry.isDirectory() && isValidFile(entry.getName())) {
+
+                String content = new String(zis.readAllBytes());
+
+                List<DetectionResult> results = SecretDetector.scan(content);
+
+                allResults.addAll(results);
+            }
+        }
+
+        zis.close();
+
+        // calculate risk + counts
+        int riskScore = 0, high = 0, medium = 0, low = 0;
+
+        for (DetectionResult r : allResults) {
+
+            riskScore += getScore(r.getSeverity());
+
+            switch (r.getSeverity()) {
+                case "HIGH" -> high++;
+                case "MEDIUM" -> medium++;
+                case "LOW" -> low++;
+            }
+        }
+
+        // save to DB
+        ScanRecord record = new ScanRecord();
+        record.setFileName(file.getOriginalFilename());
+        record.setTotalFindings(allResults.size());
+        record.setHighCount(high);
+        record.setMediumCount(medium);
+        record.setLowCount(low);
+        record.setRiskScore(riskScore);
+        record.setTimestamp(LocalDateTime.now());
+
+        repository.save(record);
+
+        return new ScanResponse(allResults.size(), riskScore, allResults);
+    }
+    private boolean isValidFile(String name) {
+        return name.endsWith(".java") ||
+                name.endsWith(".txt") ||
+                name.endsWith(".properties") ||
+                name.endsWith(".env");
+    }
+}
