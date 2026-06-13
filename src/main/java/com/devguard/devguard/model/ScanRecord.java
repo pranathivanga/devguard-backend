@@ -10,6 +10,26 @@ public class ScanRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private int riskScore;
+    private Integer securityScore;
+
+    private String riskLevel;
+
+    private Integer totalFiles;
+
+    private Integer totalSecrets;
+
+    private Integer highCount;
+
+    private Integer mediumCount;
+
+    private Integer lowCount;
+
+    private Long scanDurationMs;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiExecutiveSummary;
+
+    private String scanType;
 
     public int getRiskScore() {
         return riskScore;
@@ -23,9 +43,8 @@ public class ScanRecord {
 
     private int totalFindings;
 
-    private int highCount;
-    private int mediumCount;
-    private int lowCount;
+
+
 
     private LocalDateTime timestamp;
     // getters + setters

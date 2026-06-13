@@ -2,6 +2,7 @@ package com.devguard.devguard.service;
 
 import com.devguard.devguard.dto.CiResponse;
 import com.devguard.devguard.dto.FileReport;
+import com.devguard.devguard.dto.ScanMetrics;
 import com.devguard.devguard.dto.ScanResponse;
 import com.devguard.devguard.engine.DetectionResult;
 import com.devguard.devguard.engine.SecretDetector;
@@ -27,9 +28,17 @@ public class ScanService {
 
 //    @Autowired
 //    private ScanRepository repository;
+@Autowired
+private RiskScoringService riskScoringService;
+
+    @Autowired
+    private AiAnalysisService aiAnalysisService;
+
+    @Autowired
+    private AiExecutiveSummaryService aiExecutiveSummaryService;
 
     public ScanResponse scanText(String content) {
-
+        long startTime = System.currentTimeMillis();
         List<DetectionResult> results = SecretDetector.scan(content);
 
         int riskScore = 0;
@@ -61,13 +70,37 @@ public class ScanService {
         // 🔥 FIX: wrap results into FileReport
         List<FileReport> fileReports = new ArrayList<>();
         fileReports.add(new FileReport("manual-input", results));
+        long duration = System.currentTimeMillis() - startTime;
 
-        return new ScanResponse(
-                1,                  // totalFiles
-                results.size(),     // totalFindings
+        ScanMetrics metrics =
+                riskScoringService.calculateMetrics(
+                        results,
+                        1,
+                        duration);
+
+        for (DetectionResult r : results) {
+            r.setAiExplanation(
+                    aiAnalysisService.generateFindingExplanation(r));
+
+            r.setRecommendation(
+                    aiAnalysisService.generateRecommendation(r));
+        }
+
+        String summary =
+                aiExecutiveSummaryService.generateSummary(
+                        metrics,
+                        results);
+        ScanResponse response = new ScanResponse(
+                1,
+                results.size(),
                 riskScore,
                 fileReports
         );
+
+        response.setMetrics(metrics);
+        response.setAiExecutiveSummary(summary);
+
+        return response;
     }
 
     private int getScore(String severity) {
@@ -151,14 +184,50 @@ public class ScanService {
         record.setRiskScore(riskScore);
         record.setTimestamp(LocalDateTime.now());
 
-//        repository.save(record);
+// repository.save(record);
 
-        return new ScanResponse(
+// ---------------- AI + Metrics ----------------
+
+        List<DetectionResult> allFindings = new ArrayList<>();
+
+        for (FileReport report : fileReports) {
+            allFindings.addAll(report.getFindings());
+        }
+
+        ScanMetrics metrics =
+                riskScoringService.calculateMetrics(
+                        allFindings,
+                        fileReports.size(),
+                        0
+                );
+
+        for (DetectionResult r : allFindings) {
+            r.setAiExplanation(
+                    aiAnalysisService.generateFindingExplanation(r)
+            );
+
+            r.setRecommendation(
+                    aiAnalysisService.generateRecommendation(r)
+            );
+        }
+
+        String summary =
+                aiExecutiveSummaryService.generateSummary(
+                        metrics,
+                        allFindings
+                );
+
+        ScanResponse response = new ScanResponse(
                 fileReports.size(),
                 totalFindings,
                 riskScore,
                 fileReports
         );
+
+        response.setMetrics(metrics);
+        response.setAiExecutiveSummary(summary);
+
+        return response;
     }
     private boolean isValidFile(String name) {
         return name.endsWith(".java") ||
@@ -195,12 +264,46 @@ public class ScanService {
             }
         }
 
-        return new ScanResponse(
+        List<DetectionResult> allFindings = new ArrayList<>();
+
+        for (FileReport report : fileReports) {
+            allFindings.addAll(report.getFindings());
+        }
+
+        ScanMetrics metrics =
+                riskScoringService.calculateMetrics(
+                        allFindings,
+                        fileReports.size(),
+                        0
+                );
+
+        for (DetectionResult r : allFindings) {
+            r.setAiExplanation(
+                    aiAnalysisService.generateFindingExplanation(r)
+            );
+
+            r.setRecommendation(
+                    aiAnalysisService.generateRecommendation(r)
+            );
+        }
+
+        String summary =
+                aiExecutiveSummaryService.generateSummary(
+                        metrics,
+                        allFindings
+                );
+
+        ScanResponse response = new ScanResponse(
                 fileReports.size(),
                 totalFindings,
                 riskScore,
                 fileReports
         );
+
+        response.setMetrics(metrics);
+        response.setAiExecutiveSummary(summary);
+
+        return response;
     }
     private void scanDirectory(File dir, Map<String, List<DetectionResult>> fileMap) throws IOException {
 
