@@ -7,7 +7,7 @@ import com.devguard.devguard.dto.ScanResponse;
 import com.devguard.devguard.engine.DetectionResult;
 import com.devguard.devguard.engine.SecretDetector;
 import com.devguard.devguard.model.ScanRecord;
-import com.devguard.devguard.repository.ScanRepository;
+//import com.devguard.devguard.repository.ScanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+
 
 @Service
 public class ScanService {
@@ -90,6 +92,14 @@ private RiskScoringService riskScoringService;
                 aiExecutiveSummaryService.generateSummary(
                         metrics,
                         results);
+
+//        record.setSecurityScore(metrics.getSecurityScore());
+//        record.setRiskLevel(metrics.getRiskLevel());
+//
+//        record.setTotalFiles(metrics.getTotalFiles());
+//
+//        record.setAiExecutiveSummary(summary);
+
         ScanResponse response = new ScanResponse(
                 1,
                 results.size(),
@@ -150,7 +160,8 @@ private RiskScoringService riskScoringService;
 
                 String content = new String(zis.readAllBytes());
 
-                List<DetectionResult> results = SecretDetector.scan(content);
+                List<DetectionResult> results =
+                        SecretDetector.scan(content);
 
                 if (!results.isEmpty()) {
                     fileMap.put(entry.getName(), results);

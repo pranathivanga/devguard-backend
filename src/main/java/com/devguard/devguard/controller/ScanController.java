@@ -1,16 +1,15 @@
 package com.devguard.devguard.controller;
 
-import com.devguard.devguard.dto.CiResponse;
+import com.devguard.devguard.dto.*;
 import com.devguard.devguard.model.ScanRecord;
 import com.devguard.devguard.repository.ScanRepository;
+import com.devguard.devguard.service.GitHistoryScanService;
 import com.devguard.devguard.service.PdfReportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
-import com.devguard.devguard.dto.GithubScanRequest;
-import com.devguard.devguard.dto.ScanRequest;
-import com.devguard.devguard.dto.ScanResponse;
+
 import com.devguard.devguard.service.ScanService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +19,8 @@ import org.springframework.web.bind.annotation.*;
 public class ScanController {
     @Autowired
     private PdfReportService pdfService;
-
+    @Autowired
+    private GitHistoryScanService gitHistoryScanService;
 //    @Autowired
 //    private ScanRepository repository;
     @Autowired
@@ -69,5 +69,13 @@ public class ScanController {
     @PostMapping("/github")
     public ScanResponse scanGithubRepo(@RequestBody GithubScanRequest request) throws Exception {
         return scanService.scanGithubRepo(request.getRepoUrl());
+    }
+    @PostMapping("/github/history")
+    public GitHistoryResponse scanGithubHistory(
+            @RequestBody GithubScanRequest request) throws Exception {
+
+        return gitHistoryScanService
+                .scanRepositoryHistory(
+                        request.getRepoUrl());
     }
 }

@@ -4,9 +4,10 @@ import com.devguard.devguard.engine.DetectionResult;
 import com.devguard.devguard.engine.SecretDetector;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.List;
-
+@EnableScheduling
 @SpringBootApplication
 public class DevguardApplication {
 
